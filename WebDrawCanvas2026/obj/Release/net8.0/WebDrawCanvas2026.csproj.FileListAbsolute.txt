@@ -11,6 +11,7 @@
 /home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/obj/Release/net8.0/WebDrawCanvas2026.AssemblyInfo.cs
 /home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/obj/Release/net8.0/WebDrawCanvas2026.csproj.CoreCompileInputs.cache
 /home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/obj/Release/net8.0/WebDrawCanvas2026.MvcApplicationPartsAssemblyInfo.cache
+/home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/obj/Release/net8.0/WebDrawCanvas2026.sourcelink.json
 /home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/obj/Release/net8.0/staticwebassets.build.json
 /home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/obj/Release/net8.0/staticwebassets.development.json
 /home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/obj/Release/net8.0/staticwebassets/msbuild.WebDrawCanvas2026.Microsoft.AspNetCore.StaticWebAssets.props

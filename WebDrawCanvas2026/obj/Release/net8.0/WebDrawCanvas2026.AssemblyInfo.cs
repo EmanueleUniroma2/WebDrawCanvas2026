@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WebDrawCanvas2026")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5081959b52c30b35abf9bacd956817737162e9f8")]
 [assembly: System.Reflection.AssemblyProductAttribute("WebDrawCanvas2026")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WebDrawCanvas2026")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
