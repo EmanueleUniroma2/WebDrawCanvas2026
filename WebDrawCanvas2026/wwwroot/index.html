@@ -33,7 +33,7 @@
         #canvas-scroll-container { position: absolute; transform-origin: center; pointer-events: none; }
         #canvas-wrapper { position: relative; background: white; box-shadow: 0 0 40px rgba(0,0,0,0.8); pointer-events: auto; background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; }
         canvas { position: absolute; top: 0; left: 0; }
-        #ui-overlay { z-index: 1000; pointer-events: none; } /* For Marquee and Transform box */
+        #ui-overlay { z-index: 1000; pointer-events: none; }
 
         /* --- UI COMPONENTS --- */
         .tool-btn { width: 42px; height: 42px; background: var(--bg-button); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: 0.1s; }
@@ -74,6 +74,7 @@
         <div id="toolbar-left">
             <button class="tool-btn active" id="btn-brush" onclick="setTool('brush')" title="Brush (B)"><i data-lucide="paintbrush"></i></button>
             <button class="tool-btn" id="btn-select" onclick="setTool('select')" title="Marquee Select (M)"><i data-lucide="scan"></i></button>
+            <button class="tool-btn" id="btn-wand" onclick="setTool('wand')" title="Magic Wand (W)"><i data-lucide="wand-2"></i></button>
             <button class="tool-btn" id="btn-move" onclick="setTool('move')" title="Transform/Move (Ctrl+T)"><i data-lucide="move"></i></button>
             <button class="tool-btn" id="btn-blend" onclick="setTool('blend')" title="Smudge (S)"><i data-lucide="sparkles"></i></button>
             <button class="tool-btn" id="btn-eraser" onclick="setTool('eraser')" title="Eraser (E)"><i data-lucide="eraser"></i></button>
@@ -136,16 +137,15 @@
     <script>
         let layers = [], activeIdx = -1;
         let isDrawing = false, isPanning = false, isMoving = false, isSelecting = false;
-        let spacePressed = false, ctrlPressed = false;
+        let spacePressed = false;
         let currentTool = 'brush';
         let zoom = 0.8, panX = 0, panY = 0, lastX, lastY;
         let currentHue = 210, currentAlpha = 1, brushColor = "rgba(59, 130, 246, 1)";
         let canvasW = 1200, canvasH = 800;
         let history = [], historyStep = -1;
 
-        // Selection & Transform State
         let selectionRect = null, selStart = {x:0, y:0};
-        let transformData = null; // Stores image data of moved piece
+        let transformData = null;
 
         const wrapper = document.getElementById('canvas-wrapper');
         const scrollCont = document.getElementById('canvas-scroll-container');
@@ -159,8 +159,6 @@
             wrapper.style.width = canvasW + "px";
             wrapper.style.height = canvasH + "px";
             uiCanvas.width = canvasW; uiCanvas.height = canvasH;
-            
-            // Clear existing
             wrapper.querySelectorAll('canvas:not(#ui-overlay)').forEach(c => c.remove());
             layers = []; history = []; historyStep = -1;
             addLayer();
@@ -190,6 +188,11 @@
                 selectionRect = null; return;
             }
 
+            if(currentTool === 'wand') {
+                floodFill(Math.floor(pos.x), Math.floor(pos.y), true);
+                return;
+            }
+
             if(currentTool === 'move') {
                 isMoving = true; lastX = pos.x; lastY = pos.y;
                 prepareTransform();
@@ -197,17 +200,21 @@
             }
 
             if(activeIdx === -1) return;
+            
+            if(currentTool === 'fill') {
+                floodFill(Math.floor(pos.x), Math.floor(pos.y));
+                return;
+            }
+
             isDrawing = true; lastX = pos.x; lastY = pos.y;
-            if(currentTool === 'fill') floodFill(pos.x, pos.y);
         };
 
         window.onmousemove = (e) => {
             const pos = getMousePos(e);
-            
-            // Cursor Feedback
             const bCursor = document.getElementById('brush-cursor');
             const size = document.getElementById('size-slider').value;
-            bCursor.style.display = (currentTool === 'brush' || currentTool === 'eraser') ? 'block' : 'none';
+            
+            bCursor.style.display = (currentTool === 'brush' || currentTool === 'eraser' || currentTool === 'blend') ? 'block' : 'none';
             bCursor.style.left = (e.clientX - (size * zoom / 2)) + 'px';
             bCursor.style.top = (e.clientY - (size * zoom / 2)) + 'px';
             bCursor.style.width = bCursor.style.height = (size * zoom) + 'px';
@@ -249,16 +256,63 @@
             isDrawing = isPanning = isMoving = isSelecting = false;
         };
 
+        // --- NEW TOOLS: FILL & MAGIC WAND ---
+        function getUint32Color(colorStr) {
+            const temp = document.createElement('canvas'); temp.width = 1; temp.height = 1;
+            const tctx = temp.getContext('2d');
+            tctx.fillStyle = colorStr; tctx.fillRect(0, 0, 1, 1);
+            const d = tctx.getImageData(0, 0, 1, 1).data;
+            return (d[3] << 24) | (d[2] << 16) | (d[1] << 8) | d[0];
+        }
+
+        function floodFill(startX, startY, isWand = false) {
+            if (activeIdx === -1) return;
+            const ctx = layers[activeIdx].ctx;
+            const imageData = ctx.getImageData(0, 0, canvasW, canvasH);
+            const data32 = new Uint32Array(imageData.data.buffer);
+            
+            const targetColor = data32[startY * canvasW + startX];
+            const fillColor = getUint32Color(brushColor);
+            if (!isWand && targetColor === fillColor) return;
+
+            const stack = [[startX, startY]];
+            const visited = isWand ? new Uint8Array(canvasW * canvasH) : null;
+            let minX = startX, maxX = startX, minY = startY, maxY = startY;
+
+            while (stack.length > 0) {
+                const [x, y] = stack.pop();
+                const idx = y * canvasW + x;
+                if (data32[idx] === targetColor && (!isWand || !visited[idx])) {
+                    if (isWand) {
+                        visited[idx] = 1;
+                        if (x < minX) minX = x; if (x > maxX) maxX = x;
+                        if (y < minY) minY = y; if (y > maxY) maxY = y;
+                    } else {
+                        data32[idx] = fillColor;
+                    }
+                    if (x > 0) stack.push([x - 1, y]);
+                    if (x < canvasW - 1) stack.push([x + 1, y]);
+                    if (y > 0) stack.push([x, y - 1]);
+                    if (y < canvasH - 1) stack.push([x, y + 1]);
+                }
+            }
+            if (isWand) {
+                selectionRect = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+                renderUI();
+            } else {
+                ctx.putImageData(imageData, 0, 0);
+                saveState();
+            }
+        }
+
         // --- TRANSFORM LOGIC ---
         function prepareTransform() {
             if(activeIdx === -1 || transformData) return;
             const ctx = layers[activeIdx].ctx;
             let x = 0, y = 0, w = canvasW, h = canvasH;
-            
             if(selectionRect) { x = selectionRect.x; y = selectionRect.y; w = selectionRect.w; h = selectionRect.h; }
-            
             const imageData = ctx.getImageData(x, y, w, h);
-            ctx.clearRect(x, y, w, h); // Clear source
+            ctx.clearRect(x, y, w, h);
             transformData = { img: imageData, x, y, w, h };
             renderUI();
         }
@@ -273,14 +327,12 @@
 
         function renderUI() {
             uiCtx.clearRect(0,0,canvasW,canvasH);
-            // Draw Selection Marquee
             if(selectionRect) {
                 uiCtx.setLineDash([5, 5]); uiCtx.strokeStyle = "black";
                 uiCtx.strokeRect(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
                 uiCtx.strokeStyle = "white"; uiCtx.lineDashOffset = 5;
                 uiCtx.strokeRect(selectionRect.x, selectionRect.y, selectionRect.w, selectionRect.h);
             }
-            // Draw Transform Preview
             if(transformData) {
                 uiCtx.putImageData(transformData.img, transformData.x, transformData.y);
                 uiCtx.setLineDash([]); uiCtx.strokeStyle = varAccent();
@@ -288,12 +340,11 @@
             }
         }
 
-        // --- UTILS & CLIPBOARD ---
+        // --- UTILS ---
         function getMousePos(e) {
             const rect = wrapper.getBoundingClientRect();
             return { x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom };
         }
-
         function changeZoom(amt) { zoom = Math.min(Math.max(0.1, zoom + amt), 8); updateView(); }
         function updateView() { 
             scrollCont.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`; 
@@ -323,6 +374,7 @@
             }
             if(k === 'b') setTool('brush');
             if(k === 'm') setTool('select');
+            if(k === 'w') setTool('wand');
             if(k === 'e') setTool('eraser');
             if(k === 'g') setTool('fill');
         };
@@ -333,7 +385,7 @@
             currentTool = t;
             document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-'+t).classList.add('active');
-            if(t !== 'select' && !transformData) { selectionRect = null; renderUI(); }
+            if(t !== 'select' && t !== 'wand' && !transformData) { selectionRect = null; renderUI(); }
         }
 
         function updateHue(v) { currentHue = v; updateCol(); document.getElementById('color-triangle').style.backgroundColor = `hsl(${v}, 100%, 50%)`; }
@@ -353,18 +405,21 @@
                 const i = layers.length - 1 - ri;
                 const div = document.createElement('div');
                 div.className = `layer-item ${i === activeIdx ? 'active' : ''}`;
-                div.innerHTML = `<span>${l.name}</span><select onchange="updateLBlend(${i}, this.value)"><option value="normal">Normal</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option></select>`;
+                div.innerHTML = `<span>${l.name}</span><select onchange="updateLBlend(${i}, this.value)"><option value="normal" ${l.blend === 'normal' ? 'selected' : ''}>Normal</option><option value="multiply" ${l.blend === 'multiply' ? 'selected' : ''}>Multiply</option><option value="screen" ${l.blend === 'screen' ? 'selected' : ''}>Screen</option><option value="overlay" ${l.blend === 'overlay' ? 'selected' : ''}>Overlay</option></select>`;
                 div.onclick = () => selectL(i);
                 list.appendChild(div);
             });
             lucide.createIcons();
         }
-        function updateLBlend(i, m) { layers[i].canvas.style.mixBlendMode = m; }
+        function updateLBlend(i, m) { layers[i].canvas.style.mixBlendMode = m; layers[i].blend = m; }
 
         function saveImage() {
             const temp = document.createElement('canvas'); temp.width = canvasW; temp.height = canvasH;
             const tctx = temp.getContext('2d');
-            layers.forEach(l => tctx.drawImage(l.canvas, 0, 0));
+            layers.forEach(l => {
+                tctx.globalCompositeOperation = l.blend === 'normal' ? 'source-over' : l.blend;
+                tctx.drawImage(l.canvas, 0, 0);
+            });
             const a = document.createElement('a'); a.download = 'art.png'; a.href = temp.toDataURL(); a.click();
             showNotice("Success", "Art downloaded successfully.");
         }
@@ -380,10 +435,19 @@
             if(historyStep < history.length) history.length = historyStep;
             history.push(layers.map(l => l.canvas.toDataURL()));
         }
-        function undo() { if(historyStep > 0) { historyStep--; const s = history[historyStep]; s.forEach((d, i) => { const img = new Image(); img.onload = () => { layers[i].ctx.clearRect(0,0,canvasW,canvasH); layers[i].ctx.drawImage(img, 0, 0); }; img.src = d; }); } }
+        function undo() { 
+            if(historyStep > 0) { 
+                historyStep--; 
+                const s = history[historyStep]; 
+                s.forEach((d, i) => { 
+                    const img = new Image(); 
+                    img.onload = () => { layers[i].ctx.clearRect(0,0,canvasW,canvasH); layers[i].ctx.drawImage(img, 0, 0); }; 
+                    img.src = d; 
+                }); 
+            } 
+        }
 
         viewport.onwheel = (e) => { if(e.ctrlKey) { e.preventDefault(); changeZoom(e.deltaY * -0.001); } };
-        
         initCanvas();
     </script>
 </body>
