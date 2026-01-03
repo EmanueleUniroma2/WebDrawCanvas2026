@@ -1,113 +1,368 @@
-const container = document.getElementById('canvas-container');
-const layerList = document.getElementById('layer-list');
-let layers = [];
-let activeLayerIndex = -1;
-let isDrawing = false;
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProDraw Canvas 2026</title>
+    <style>
+        :root {
+            --bg-dark: #1e1e1e;
+            --panel-bg: #2d2d2d;
+            --accent: #0078d7;
+            --text: #e0e0e0;
+            --border: #444;
+        }
 
-// Configurazione pennello
-const brush = {
-    color: '#000000',
-    size: 5
-};
+        body {
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            overflow: hidden;
+        }
 
-document.getElementById('colorPicker').onchange = (e) => brush.color = e.target.value;
-document.getElementById('brushSize').oninput = (e) => brush.size = e.target.value;
+        /* Sidebar Styling */
+        #sidebar {
+            width: 280px;
+            background: var(--panel-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
 
-function addNewLayer() {
-    const id = Date.now();
-    const canvas = document.createElement('canvas');
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight;
-    canvas.id = `layer-${id}`;
-    
-    const layer = {
-        id: id,
-        canvas: canvas,
-        ctx: canvas.getContext('2d'),
-        opacity: 1,
-        blendMode: 'normal',
-        visible: true
-    };
+        h3 { margin: 15px 0 10px 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; color: #888; }
 
-    layers.push(layer);
-    container.appendChild(canvas);
-    selectLayer(layers.length - 1);
-    renderLayerList();
-}
+        .tool-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        
+        .brush-settings { display: grid; grid-template-columns: 1fr 2fr; align-items: center; gap: 10px; }
 
-function selectLayer(index) {
-    activeLayerIndex = index;
-    layers.forEach((l, i) => {
-        l.canvas.classList.toggle('active', i === index);
-    });
-    renderLayerList();
-}
+        .tool-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        
+        button {
+            background: #444;
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
 
-function updateLayerProperties(index, props) {
-    const layer = layers[index];
-    if (props.opacity !== undefined) {
-        layer.opacity = props.opacity;
-        layer.canvas.style.opacity = props.opacity;
-    }
-    if (props.blendMode !== undefined) {
-        layer.blendMode = props.blendMode;
-        layer.canvas.style.mixBlendMode = props.blendMode; // Utilizziamo CSS blend mode per semplicità
-    }
-    if (props.visible !== undefined) {
-        layer.visible = props.visible;
-        layer.canvas.style.display = props.visible ? 'block' : 'none';
-    }
-}
+        button:hover { background: #555; }
+        button.active { background: var(--accent); }
 
-function renderLayerList() {
-    layerList.innerHTML = '';
-    layers.slice().reverse().forEach((layer, revIndex) => {
-        const index = layers.length - 1 - revIndex;
-        const div = document.createElement('div');
-        div.className = `layer-item ${index === activeLayerIndex ? 'selected' : ''}`;
-        div.onclick = () => selectLayer(index);
+        /* Canvas Workspace */
+        #workspace {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #111;
+            padding: 20px;
+            position: relative;
+        }
 
-        div.innerHTML = `
-            <span>Layer ${index + 1}</span>
-            <div class="layer-controls">
-                <select onchange="updateLayerProperties(${index}, {blendMode: this.value})">
-                    <option value="normal">Normale</option>
-                    <option value="multiply">Multiply</option>
-                    <option value="screen">Screen</option>
-                    <option value="overlay">Overlay</option>
-                    <option value="color-dodge">Dodge</option>
-                    <option value="color-burn">Burn</option>
-                </select>
-                <input type="checkbox" ${layer.visible ? 'checked' : ''} 
-                    onchange="updateLayerProperties(${index}, {visible: this.checked})">
+        #canvas-container {
+            position: relative;
+            background: white;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            width: 800px;
+            height: 600px;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            outline: none;
+        }
+
+        /* Layer List */
+        #layer-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+
+        .layer-item {
+            background: #383838;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .layer-item.selected { border-color: var(--accent); background: #3f3f3f; }
+
+        .layer-main { display: flex; align-items: center; justify-content: space-between; }
+        
+        .layer-name { background: transparent; border: none; color: white; font-weight: bold; width: 100px; }
+
+        input[type="range"] { accent-color: var(--accent); width: 100%; }
+        
+        select { background: #444; color: white; border: 1px solid #555; border-radius: 3px; }
+
+        .delete-btn { background: #c42b2b; padding: 2px 8px; font-size: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h3>Strumenti</h3>
+        <div class="tool-buttons">
+            <button id="btn-brush" class="active" onclick="setTool('brush')">Pennello</button>
+            <button id="btn-eraser" onclick="setTool('eraser')">Gomma</button>
+            <button id="btn-fill" onclick="setTool('fill')">Secchiello</button>
+        </div>
+
+        <div class="tool-group">
+            <div class="brush-settings">
+                <label>Colore</label>
+                <input type="color" id="colorPicker" value="#000000" style="width:100%">
+                <label>Taglia</label>
+                <input type="range" id="brushSize" min="1" max="100" value="10">
             </div>
-            <input type="range" min="0" max="1" step="0.1" value="${layer.opacity}" 
-                oninput="updateLayerProperties(${index}, {opacity: this.value})">
-        `;
-        layerList.appendChild(div);
-    });
-}
+        </div>
 
-// Logica di disegno
-container.onmousedown = (e) => {
-    if (activeLayerIndex === -1) return;
-    isDrawing = true;
-    const ctx = layers[activeLayerIndex].ctx;
-    ctx.beginPath();
-    ctx.moveTo(e.offsetX, e.offsetY);
-};
+        <hr style="width:100%; border:0; border-top:1px solid #444">
 
-container.onmousemove = (e) => {
-    if (!isDrawing) return;
-    const ctx = layers[activeLayerIndex].ctx;
-    ctx.lineTo(e.offsetX, e.offsetY);
-    ctx.strokeStyle = brush.color;
-    ctx.lineWidth = brush.size;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-};
+        <h3>Layers</h3>
+        <div id="layer-list"></div>
+        <button onclick="addNewLayer()" style="background: var(--accent);">+ Aggiungi Layer</button>
+    </div>
 
-window.onmouseup = () => isDrawing = false;
+    <div id="workspace">
+        <div id="canvas-container" id="container">
+            </div>
+    </div>
 
-// Inizializza con un layer
-addNewLayer();
+    <script>
+        const container = document.getElementById('canvas-container');
+        const layerList = document.getElementById('layer-list');
+        let layers = [];
+        let activeLayerIndex = -1;
+        let isDrawing = false;
+        let currentTool = 'brush'; // brush, eraser, fill
+
+        const brush = {
+            color: '#000000',
+            size: 10
+        };
+
+        // UI Listeners
+        document.getElementById('colorPicker').onchange = (e) => brush.color = e.target.value;
+        document.getElementById('brushSize').oninput = (e) => brush.size = e.target.value;
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-buttons button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${tool}`).classList.add('active');
+        }
+
+        function addNewLayer() {
+            const id = Date.now();
+            const canvas = document.createElement('canvas');
+            canvas.width = 800;
+            canvas.height = 600;
+            canvas.style.zIndex = layers.length;
+            
+            const layer = {
+                id: id,
+                name: `Layer ${layers.length + 1}`,
+                canvas: canvas,
+                ctx: canvas.getContext('2d', { willReadFrequently: true }),
+                opacity: 1,
+                blendMode: 'normal',
+                visible: true
+            };
+
+            layers.push(layer);
+            container.appendChild(canvas);
+            selectLayer(layers.length - 1);
+            renderLayerList();
+        }
+
+        function deleteLayer(index, event) {
+            event.stopPropagation();
+            if (layers.length <= 1) return;
+            
+            container.removeChild(layers[index].canvas);
+            layers.splice(index, 1);
+            
+            activeLayerIndex = layers.length - 1;
+            selectLayer(activeLayerIndex);
+            renderLayerList();
+        }
+
+        function selectLayer(index) {
+            activeLayerIndex = index;
+            renderLayerList();
+        }
+
+        function updateLayerProperties(index, props) {
+            const layer = layers[index];
+            if (props.name !== undefined) layer.name = props.name;
+            if (props.opacity !== undefined) {
+                layer.opacity = props.opacity;
+                layer.canvas.style.opacity = props.opacity;
+            }
+            if (props.blendMode !== undefined) {
+                layer.blendMode = props.blendMode;
+                layer.canvas.style.mixBlendMode = props.blendMode;
+            }
+            if (props.visible !== undefined) {
+                layer.visible = props.visible;
+                layer.canvas.style.visibility = props.visible ? 'visible' : 'hidden';
+            }
+        }
+
+        function renderLayerList() {
+            layerList.innerHTML = '';
+            // Render reversed to show top layer at top of UI
+            [...layers].reverse().forEach((layer, revIndex) => {
+                const index = layers.length - 1 - revIndex;
+                const div = document.createElement('div');
+                div.className = `layer-item ${index === activeLayerIndex ? 'selected' : ''}`;
+                div.onclick = () => selectLayer(index);
+
+                div.innerHTML = `
+                    <div class="layer-main">
+                        <input class="layer-name" value="${layer.name}" 
+                            onclick="event.stopPropagation()"
+                            onchange="updateLayerProperties(${index}, {name: this.value})">
+                        <button class="delete-btn" onclick="deleteLayer(${index}, event)">Elimina</button>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:center">
+                        <select onchange="updateLayerProperties(${index}, {blendMode: this.value})" onclick="event.stopPropagation()">
+                            <option value="normal" ${layer.blendMode==='normal'?'selected':''}>Normale</option>
+                            <option value="multiply" ${layer.blendMode==='multiply'?'selected':''}>Multiply</option>
+                            <option value="screen" ${layer.blendMode==='screen'?'selected':''}>Screen</option>
+                            <option value="overlay" ${layer.blendMode==='overlay'?'selected':''}>Overlay</option>
+                            <option value="color-dodge" ${layer.blendMode==='color-dodge'?'selected':''}>Dodge</option>
+                            <option value="color-burn" ${layer.blendMode==='color-burn'?'selected':''}>Burn</option>
+                        </select>
+                        <input type="checkbox" ${layer.visible ? 'checked' : ''} 
+                            onclick="event.stopPropagation()"
+                            onchange="updateLayerProperties(${index}, {visible: this.checked})">
+                    </div>
+                    <input type="range" min="0" max="1" step="0.01" value="${layer.opacity}" 
+                        onclick="event.stopPropagation()"
+                        oninput="updateLayerProperties(${index}, {opacity: this.value})">
+                `;
+                layerList.appendChild(div);
+            });
+        }
+
+        // Logic for Drawing & Filling
+        container.onmousedown = (e) => {
+            if (activeLayerIndex === -1 || !layers[activeLayerIndex].visible) return;
+            
+            const rect = container.getBoundingClientRect();
+            const x = Math.round(e.clientX - rect.left);
+            const y = Math.round(e.clientY - rect.top);
+
+            if (currentTool === 'fill') {
+                floodFill(layers[activeLayerIndex].ctx, x, y, brush.color);
+                return;
+            }
+
+            isDrawing = true;
+            const ctx = layers[activeLayerIndex].ctx;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        };
+
+        container.onmousemove = (e) => {
+            if (!isDrawing || currentTool === 'fill') return;
+            
+            const rect = container.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const ctx = layers[activeLayerIndex].ctx;
+
+            ctx.lineTo(x, y);
+            ctx.lineWidth = brush.size;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            if (currentTool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = brush.color;
+            }
+            ctx.stroke();
+        };
+
+        window.onmouseup = () => isDrawing = false;
+
+        // Flood Fill Algorithm
+        function floodFill(ctx, x, y, fillColor) {
+            const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+            const targetColor = getPixel(imageData, x, y);
+            const fillRGB = hexToRgb(fillColor);
+            
+            if (colorsMatch(targetColor, [...fillRGB, 255])) return;
+
+            const pixelsToCheck = [x, y];
+            while (pixelsToCheck.length > 0) {
+                const curY = pixelsToCheck.pop();
+                const curX = pixelsToCheck.pop();
+
+                const currentColor = getPixel(imageData, curX, curY);
+                if (colorsMatch(currentColor, targetColor)) {
+                    setPixel(imageData, curX, curY, fillRGB);
+                    
+                    if (curX > 0) pixelsToCheck.push(curX - 1, curY);
+                    if (curX < imageData.width - 1) pixelsToCheck.push(curX + 1, curY);
+                    if (curY > 0) pixelsToCheck.push(curX, curY - 1);
+                    if (curY < imageData.height - 1) pixelsToCheck.push(curX, curY + 1);
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        function getPixel(imageData, x, y) {
+            const index = (y * imageData.width + x) * 4;
+            return [
+                imageData.data[index],
+                imageData.data[index + 1],
+                imageData.data[index + 2],
+                imageData.data[index + 3]
+            ];
+        }
+
+        function setPixel(imageData, x, y, color) {
+            const index = (y * imageData.width + x) * 4;
+            imageData.data[index] = color[0];
+            imageData.data[index + 1] = color[1];
+            imageData.data[index + 2] = color[2];
+            imageData.data[index + 3] = 255;
+        }
+
+        function colorsMatch(c1, c2) {
+            return c1[0] === c2[0] && c1[1] === c2[1] && c1[2] === c2[2] && c1[3] === c2[3];
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [
+                parseInt(result[1], 16),
+                parseInt(result[2], 16),
+                parseInt(result[3], 16)
+            ] : [0, 0, 0];
+        }
+
+        // Initialize
+        addNewLayer();
+    </script>
+</body>
+</html>
