@@ -1,0 +1,64 @@
+{
+  "format": 1,
+  "restore": {
+    "/home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/WebDrawCanvas2026.csproj": {}
+  },
+  "projects": {
+    "/home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/WebDrawCanvas2026.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/WebDrawCanvas2026.csproj",
+        "projectName": "WebDrawCanvas2026",
+        "projectPath": "/home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/WebDrawCanvas2026.csproj",
+        "packagesPath": "/home/serverino/.nuget/packages/",
+        "outputPath": "/home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/serverino/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/8.0.122/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

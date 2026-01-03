@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../build/WebDrawCanvas2026.props" />
+</Project>

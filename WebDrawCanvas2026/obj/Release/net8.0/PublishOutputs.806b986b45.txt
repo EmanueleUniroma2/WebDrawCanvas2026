@@ -1,0 +1,7 @@
+/home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/bin/Release/net8.0/publish/WebDrawCanvas2026
+/home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/bin/Release/net8.0/publish/appsettings.Development.json
+/home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/bin/Release/net8.0/publish/appsettings.json
+/home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/bin/Release/net8.0/publish/WebDrawCanvas2026.dll
+/home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/bin/Release/net8.0/publish/WebDrawCanvas2026.deps.json
+/home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/bin/Release/net8.0/publish/WebDrawCanvas2026.runtimeconfig.json
+/home/serverino/SelfHostedPaaS/apps/WebDrawCanvas2026/WebDrawCanvas2026/bin/Release/net8.0/publish/WebDrawCanvas2026.pdb
